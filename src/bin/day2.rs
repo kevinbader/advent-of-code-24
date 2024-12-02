@@ -12,6 +12,16 @@ fn main() {
 
         if is_report_safe(&levels) {
             n_safe_reports += 1;
+        } else {
+            // Is it safe using the Problem Dampener?
+            for i in 0..levels.len() {
+                let mut levels = levels.clone();
+                levels.remove(i);
+                if is_report_safe(&levels) {
+                    n_safe_reports += 1;
+                    break;
+                }
+            }
         }
     }
 
