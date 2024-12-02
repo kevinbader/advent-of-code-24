@@ -3,7 +3,7 @@ use std::{env::args, fs};
 use itertools::Itertools;
 
 fn main() {
-    let data = fs::read_to_string(args().nth(1).unwrap()).unwrap();
+    let data = fs::read_to_string(args().nth(1).unwrap_or("input/day1.txt".into())).unwrap();
 
     let mut list1 = Vec::new();
     let mut list2 = Vec::new();
