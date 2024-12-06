@@ -38,8 +38,8 @@ fn is_report_safe(levels: &[i32]) -> bool {
 
     let diffs: Vec<i32> = levels.windows(2).map(|w| w[1] - w[0]).collect();
 
-    let all_increasing_within_range = diffs.iter().all(|&d| d > 0 && d <= 3);
-    let all_decreasing_within_range = diffs.iter().all(|&d| d < 0 && d >= -3);
+    let all_increasing_within_range = diffs.iter().all(|d| (1..=3).contains(d));
+    let all_decreasing_within_range = diffs.iter().all(|d| (-3..=-1).contains(d));
 
     all_increasing_within_range || all_decreasing_within_range
 }
