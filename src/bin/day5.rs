@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     env::args,
     fs,
 };
@@ -14,14 +14,19 @@ fn main() {
 
     // We check from back to front and take not what page numbers must not occur
     // earlier. If we find such a page, we know it's not in correct order.
-    let mut midpoint_sum = 0;
+    let mut midpoint_sum_already_ordered = 0;
+    let mut midpoint_sum_newly_ordered = 0;
     for update in updates {
         if is_correctly_ordered(&update, &rules) {
-            midpoint_sum += middle_page_number_of(&update);
+            midpoint_sum_already_ordered += middle_page_number_of(&update);
+        } else {
+            let update = topological_sort(&update, &rules);
+            midpoint_sum_newly_ordered += middle_page_number_of(&update);
         }
     }
 
-    println!("Sum of middle page numbers of correctly ordered updates: {midpoint_sum}");
+    println!("Sum of middle page numbers of already correctly ordered updates: {midpoint_sum_already_ordered}");
+    println!("Sum of middle page numbers of newly correctly ordered updates: {midpoint_sum_newly_ordered}");
 }
 
 fn is_correctly_ordered(update: &[u32], rules: &HashMap<u32, HashSet<u32>>) -> bool {
@@ -35,6 +40,58 @@ fn is_correctly_ordered(update: &[u32], rules: &HashMap<u32, HashSet<u32>>) -> b
         }
     }
     true
+}
+
+fn topological_sort(update: &[u32], rules: &HashMap<u32, HashSet<u32>>) -> Vec<u32> {
+    // Kahn's algorithm:
+    // 1. Find list of nodes with no incoming edges.
+    // 2. Remove edges from neighbors, then add node to result.
+    // 3. Neighbors that no longer have any incoming edges are added to the processing queue.
+
+    // The graph for the given update (= a subset of rules).
+    let mut edges: HashMap<u32, HashSet<u32>> = HashMap::new();
+    // Counters for the number of dependencies for any page in the update.
+    let mut in_degree: HashMap<u32, usize> = HashMap::new();
+    // Initialize all page numbers in the update:
+    update.iter().for_each(|pagenum| {
+        let prev_val = in_degree.insert(*pagenum, 0);
+        assert_eq!(prev_val, None);
+    });
+    // Check all rules, and for those applicable to the update, increment in_degree.
+    for (&earlier_page, later_pages) in rules {
+        for &later_page in later_pages {
+            if update.contains(&earlier_page) && update.contains(&later_page) {
+                // This rule is relevant to this update; we count the inbound edge.
+                *in_degree.get_mut(&later_page).unwrap() += 1;
+                edges.entry(earlier_page).or_default().insert(later_page);
+            }
+        }
+    }
+    // Note that in_degree only contains page numbers that occur in the update.
+
+    // We start with the pages that have no inbound edges.
+    let mut queue: VecDeque<u32> = in_degree
+        .iter()
+        .filter_map(|(&pagenum, &edges)| if edges == 0 { Some(pagenum) } else { None })
+        .collect();
+
+    let mut result = Vec::new();
+    while let Some(pagenum) = queue.pop_front() {
+        result.push(pagenum);
+        if let Some(later_pages) = edges.get(&pagenum) {
+            for &later_page in later_pages.iter() {
+                let deg = in_degree.entry(later_page).or_default();
+                *deg -= 1;
+                if *deg == 0 {
+                    // All of the later_page's dependencies are already in result,
+                    // so we can queue it for processing.
+                    queue.push_back(later_page);
+                }
+            }
+        }
+    }
+
+    result
 }
 
 fn middle_page_number_of(update: &[u32]) -> u32 {
